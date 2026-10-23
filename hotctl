@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# hotctl <command...>   e.g. hotctl status | hotctl set name My Room | hotctl players | hotctl start
+PORT="${HOTCTL_PORT:-27555}"
+APPID=3707400
+GAME="${HOT_GAME:-$HOME/.local/share/Steam/steamapps/common/On-Together/On-Together}"
+CFG="$GAME/BepInEx/config/awe.hotserver.cfg"
+FLAG="$GAME/BepInEx/hotserver.stopped"   # tells hotwatch that we stopped on purpose so it doesnt try to restart thinking it was a crash
+TAGS="focus mature chill break modded"
+
+HELP="hotctl commands:
+  start                                  Start the server
+  stop                                   Stop the server (hotwatch won't relaunch it)
+  reboot | restart                       Restart the server
+  status                                 Lobby ID, player count, lobby name, next reboot
+  players                                Everyone in the lobby
+  config                                 Current lobby settings
+  set name <text>                        Lobby name
+  set maxplayers <number>                Player limit
+  set public|voice|request true|false    Visibility / voice chat / request to join
+  tag add|remove <tag>                   Tags: focus, mature, chill, break, modded
+"
+
+running() { pgrep -f 'OnTogether\.exe' >/dev/null; }
+launch()  { DISPLAY="${DISPLAY:-:1}" steam -applaunch "$APPID" >/dev/null 2>&1 & disown; }
+die()     { echo "$*" >&2; exit 1; }
+
+# Send the command to the running server and print its reply
+send() {
+  printf '%s\n' "$*" >&3
+  while IFS= read -r -t 10 line <&3; do
+    [[ "$line" == "." ]] && break
+    printf '%s\n' "$line"
+  done
+  exec 3>&-
+}
+
+# Offline-able commands
+truthy()   { [[ "${1,,}" =~ ^(1|true|yes|on|t)$ ]] && echo true || echo false; }
+need_cfg() { [[ -f "$CFG" ]] || die "Config not found: $CFG (launch the game once first)"; }
+cfg_get()  { sed -n "s/^$1 = //p" "$CFG" | head -1 | tr -d '\r'; }
+cfg_set()  {
+  awk -v k="$1" -v v="$2" 'index($0, k " = ") == 1 { cr = sub(/\r$/, ""); print k " = " v (cr ? "\r" : ""); next } { print }' "$CFG" > "$CFG.tmp" \
+    && mv "$CFG.tmp" "$CFG"
+}
+
+case "${1:-help}" in help|-h|--help) echo "$HELP"; exit 0 ;; esac
+[[ "$1" == restart ]] && set -- reboot "${@:2}"
+
+
+if { exec 3<>"/dev/tcp/127.0.0.1/$PORT"; } 2>/dev/null; then
+  if [[ "$1" == reboot ]]; then
+    send reboot >/dev/null
+    for _ in $(seq 60); do running || break; sleep 1; done
+    launch
+    echo "Rebooting HOTServer"
+    exit 0
+  fi
+  send "$@"
+  exit 0
+fi
+
+if running; then
+  die "The game is running but HOTServer isn't answering yet (still starting, or the config has Enabled = false). Try again in a moment."
+fi
+
+case "$1" in
+  start)
+    launch
+    echo "Starting server HOTServer"
+    ;;
+
+  stop)
+    touch "$FLAG"
+    echo "HOTServer already stopped"
+    ;;
+
+  config)
+    need_cfg
+    echo "name=\"$(cfg_get Name)\" maxplayers=$(cfg_get MaxPlayers) public=$(cfg_get Public) voice=$(cfg_get VoiceChat) request=$(cfg_get RequestToJoin) tags=$(cfg_get Tags) (server off)"
+    ;;
+
+  set)
+    need_cfg
+    [[ -n "$2" && -n "$3" ]] || die "usage: hotctl set <name|maxplayers|public|voice|request> <value>"
+    val="${*:3}"
+    case "${2,,}" in
+      name)       cfg_set Name "$val" ;;
+      maxplayers) [[ "$val" =~ ^[0-9]+$ ]] && (( val >= 1 )) || die "ERR int >= 1"; cfg_set MaxPlayers "$val" ;;
+      public)     cfg_set Public "$(truthy "$val")" ;;
+      voice)      cfg_set VoiceChat "$(truthy "$val")" ;;
+      request)    cfg_set RequestToJoin "$(truthy "$val")" ;;
+      *)          die "ERR unknown key" ;;
+    esac
+    echo "OK (restart HOTServer to apply)"
+    ;;
+
+  tag)
+    need_cfg
+    op="${2,,}"; tag="${3,,}"
+    [[ ( "$op" == add || "$op" == remove ) && -n "$tag" ]] || die "usage: hotctl tag <add|remove> <tag>   (tags: ${TAGS// /,})"
+    [[ " $TAGS " == *" $tag "* ]] || die "ERR unknown tag (tags: ${TAGS// /,})"
+    new=""
+    for t in $(cfg_get Tags | tr ',' ' ' | tr '[:upper:]' '[:lower:]'); do
+      [[ "$t" == "$tag" ]] || new="$new,$t"
+    done
+    [[ "$op" == add ]] && new="$new,$tag"
+    new="${new#,}"
+    cfg_set Tags "$new"
+    echo "OK tags=${new:-(none)} (applies on next start)"
+    ;;
+
+  status|players|reboot)
+    die "HOTServer isn't running. Start it first: hotctl start"
+    ;;
+
+  *)
+    die "ERR unknown command (try: hotctl help)"
+    ;;
+esac

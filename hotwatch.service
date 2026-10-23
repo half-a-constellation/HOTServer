@@ -1,0 +1,13 @@
+[Unit]
+Description=HOTWatch (Keeps an eye on HOTServer)
+After=network-online.target xvfb.service
+Wants=network-online.target
+Requires=xvfb.service
+
+[Service]
+ExecStart=/home/azureuser/.local/bin/hotwatch
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

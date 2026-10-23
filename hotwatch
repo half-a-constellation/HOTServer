@@ -5,9 +5,9 @@
 GAME="${HOT_GAME:-$HOME/.local/share/Steam/steamapps/common/On-Together/On-Together}"
 FLAG="$GAME/BepInEx/hotserver.stopped"   # written by `hotctl stop`, removed when the game starts
 APPID=3707400
-CHECK=30        # seconds between checks
+CHECK=15        # seconds between checks
 GRACE=180       # Gives a grace period before we start watching
-HANG_FAILS=2    # Failed health checks in a row (~1 min). Possibly hung, so we kill
+HANG_FAILS=4    # Failed health checks in a row (~1 min). Possibly hung, so we kill
 export DISPLAY="${DISPLAY:-:1}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 

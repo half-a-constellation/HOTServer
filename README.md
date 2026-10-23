@@ -35,7 +35,7 @@ All your server information and config data lives in `GAME_FOLDER/BepInEx/config
 ### 1. Install BepInEx
 Download the **windows** release of [BepInEx](https://github.com/BepInEx/BepInEx/releases/) and extract the contents to the game folder at `~/.local/share/Steam/steamapps/common/On-Together/On-Together`
 ### 2. Run the game
-Set the launch options (Steam → On-Together → Properties → Launch Options) to ```WINEDLLOVERRIDES="winhttp=n,b" %command% -batchmode -nographics``` and run the game once to generate the BepInEx files.
+Set the launch options (Steam → On-Together → Properties → Launch Options) to ```WINEDLLOVERRIDES="winhttp=n,b" %command% -batchmode``` and run the game once to generate the BepInEx files.
 ### 3. Install HOTServer
 Download the latest `HOTServer.zip` from the [releases](https://github.com/half-a-constellation/HOTServer/releases) into `BepInEx/plugins/` inside the game folder.
 ### 4. Install hotctl and hotwatch
