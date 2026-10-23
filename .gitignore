@@ -1,0 +1,17 @@
+# Build output
+src/bin/
+src/obj/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Release packaging
+*.zip
+
+# OS stuff
+.DS_Store
+Thumbs.db

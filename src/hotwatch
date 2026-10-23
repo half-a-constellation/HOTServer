@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Hotwatch: On-Together relaunch handler in case of a crash or scheduled reboot
+# Requires Enabled = true in awe.otserver.cfg
+
+GAME="${HOT_GAME:-$HOME/.local/share/Steam/steamapps/common/On-Together/On-Together}"
+FLAG="$GAME/BepInEx/hotserver.stopped"   # written by `hotctl stop`, removed when the game starts
+APPID=3707400
+CHECK=30        # seconds between checks
+GRACE=180       # Gives a grace period before we start watching
+HANG_FAILS=2    # Failed health checks in a row (~1 min). Possibly hung, so we kill
+export DISPLAY="${DISPLAY:-:1}"
+DIR="$(cd "$(dirname "$0")" && pwd)"
+
+log()     { echo "[$(date '+%F %T')] $*"; }
+running() { pgrep -f 'OnTogether\.exe' >/dev/null; }
+booting() { (( $(date +%s) - launched < GRACE )); }
+launch()  { log "launching"; steam -applaunch "$APPID" >/dev/null 2>&1 & disown; launched=$(date +%s); }
+
+launched=0
+fails=0
+log "hotwatch started (game: $GAME)"
+
+while true; do
+  if [[ -f "$FLAG" ]]; then              # stopped on purpose
+    sleep "$CHECK"; continue
+  fi
+
+  if ! running; then
+    booting || { log "game not running"; launch; }
+    fails=0; sleep "$CHECK"; continue
+  fi
+
+  if ! booting; then
+    if "$DIR/hotctl" status >/dev/null 2>&1; then
+      fails=0
+    else
+      fails=$((fails + 1))
+      if (( fails >= HANG_FAILS )); then
+        log "unresponsive for ~$((HANG_FAILS * CHECK))s, killing"
+        pkill -f 'OnTogether\.exe'; fails=0; sleep 10
+      fi
+    fi
+  fi
+  sleep "$CHECK"
+done
