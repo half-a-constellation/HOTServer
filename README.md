@@ -16,7 +16,7 @@ Mod manager installs (r2modman, Gale) are experimental and untested.
 ## Features
 
 ### Server Compatibility
-You no longer need an extra laptop to run a OT server. This mod works in a cloud VPS and has passed a 10h test on a Microsoft Azure Standard D2as v6 (2 vcpus, 8 GiB memory) instance.
+You no longer need an extra laptop to run an OT server. This mod works in a cloud VPS and has passed a 10h test on a Microsoft Azure Standard D2as v6 (2 vcpus, 8 GiB memory) instance.
 
 ### Auto recover and reboot
 Schedule server reboots at a specific time to prevent memory buildup.
@@ -26,7 +26,7 @@ A service can automatically attempt to restart the server when it detects a cras
 Since the game runs headless, it only uses your CPU (and ~1 GB of VRAM). Feel free to run another game or graphically intensive task in the background.
 
 ### Mod Support
-Being a mod itself, its compatible with other BepInEx mods (such as Heartbeat). If there is any problem, please open an Issue.
+Being a mod itself, it's compatible with other BepInEx mods (such as Heartbeat). If there is any problem, please open an Issue.
 
 ### Lightweight
 Adds no overhead on top of the game. This mod simply enables the creation of the server using the game's own functionality.
@@ -46,7 +46,7 @@ See the [VPS setup guide](docs/setup/vps.md) for running HOTServer on a linux cl
 | Command | What it does |
 | --- | --- |
 | `hotcli help` | Lists all commands |
-| `hotcli setup` | Runs setup (required) (runs automatically the first time) |
+| `hotcli setup` | Runs setup (runs automatically the first time) |
 | `hotcli start` | Starts the server (Runs steam game) |
 | `hotcli status` | Shows server status (Lobby ID, Player count, Lobby name, next reboot, HOTWatch) |
 | `hotcli players` | Lists everyone in the lobby with SteamID and name |
