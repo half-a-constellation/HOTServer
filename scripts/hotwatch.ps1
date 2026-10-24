@@ -1,5 +1,5 @@
 # Hotwatch: On-Together relaunch handler in case of a crash or scheduled reboot
-# Windows version. Requires Enabled = true in awe.hotserver.cfg
+# Windows version. Requires Enabled = true in awe.hotserver.cfg. Start it in the background with: hotcli start hotwatch
 
 # Find the game folder through Steam (registry -> libraryfolders.vdf), since these scripts can live anywhere.
 # Set HOT_GAME to skip the lookup.
@@ -22,17 +22,26 @@ function Find-GameDir {
     exit 1
 }
 $Game  = Find-GameDir
-$Flag  = Join-Path $Game 'BepInEx\hotserver.stopped'   # written by `hotctl stop`, removed when the game starts
-$Port  = if ($env:HOTCTL_PORT) { [int]$env:HOTCTL_PORT } else { 27555 }
-$AppId = 3707400
-$Check     = 15    # seconds between checks
+$Flag  = Join-Path $Game 'BepInEx\hotserver.stopped'   # written by `hotcli stop`, removed when the game starts
+$Cfg   = Join-Path $Game 'BepInEx\config\awe.hotserver.cfg'
+$Port  = 27555
+if (Test-Path $Cfg) { foreach ($l in [IO.File]::ReadAllLines($Cfg)) { if ($l.StartsWith('Port = ')) { $Port = [int]$l.Substring(7) } } }
+$WatchLog = Join-Path $Game 'BepInEx\hotwatch.log'
+$Check     = 30    # seconds between checks
 $Grace     = 180   # Gives a grace period before we start watching
-$HangFails = 4     # Failed health checks in a row (~1 min). Possibly hung, so we kill
+$HangFails = 2     # Failed health checks in a row (~1 min). Possibly hung, so we kill
 
-function Log($msg)    { Write-Host ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f (Get-Date), $msg) }
-function Test-Running { [bool](Get-Process -Name OnTogether -ErrorAction SilentlyContinue) }
-function Test-Booting { ((Get-Date) - $script:launched).TotalSeconds -lt $Grace }
-function Start-Game   { Log 'launching'; Start-Process "steam://rungameid/$AppId"; $script:launched = Get-Date }
+function Log($msg) {
+    $line = "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f (Get-Date), $msg
+    Write-Host $line
+    Add-Content -Path $WatchLog -Value $line -ErrorAction SilentlyContinue
+}
+function Get-GameProcs    { @(Get-CimInstance Win32_Process -Filter "Name='OnTogether.exe'" -ErrorAction SilentlyContinue) }
+function Get-ServerProcs  { @(Get-GameProcs | Where-Object { $_.CommandLine -match '-batchmode' }) }   # our headless instance
+function Test-Running     { [bool](Get-ServerProcs) }
+function Test-GameRunning { [bool](Get-GameProcs) }                                                   # any instance, incl. normal play
+function Test-Booting     { ((Get-Date) - $script:launched).TotalSeconds -lt $Grace }
+function Start-Game       { Log 'launching'; & "$PSScriptRoot\hotcli.ps1" start | Out-Null; $script:launched = Get-Date }
 
 # Health check: does HOTServer answer `status`?
 function Test-Healthy {
@@ -56,6 +65,9 @@ while ($true) {
     }
 
     if (-not (Test-Running)) {
+        if (Test-GameRunning) {               # someone is playing normally, leave it alone
+            Start-Sleep -Seconds $Check; continue
+        }
         if (-not (Test-Booting)) { Log 'game not running'; Start-Game }
         $fails = 0; Start-Sleep -Seconds $Check; continue
     }
@@ -67,7 +79,7 @@ while ($true) {
             $fails++
             if ($fails -ge $HangFails) {
                 Log "unresponsive for ~$($HangFails * $Check)s, killing"
-                Stop-Process -Name OnTogether -Force -ErrorAction SilentlyContinue
+                Get-ServerProcs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
                 $fails = 0; Start-Sleep -Seconds 10
             }
         }

@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# hotctl <command...>   e.g. hotctl status | hotctl set name My Room | hotctl players | hotctl start
-PORT="${HOTCTL_PORT:-27555}"
+# hotcli <command...>   e.g. hotcli status | hotcli set name My Room | hotcli players | hotcli start
 APPID=3707400
+LAUNCH_ARGS="-batchmode" # Required for headless
 GAME="${HOT_GAME:-$HOME/.local/share/Steam/steamapps/common/On-Together/On-Together}"
 CFG="$GAME/BepInEx/config/awe.hotserver.cfg"
 FLAG="$GAME/BepInEx/hotserver.stopped"   # tells hotwatch that we stopped on purpose so it doesnt try to restart thinking it was a crash
+WATCH_LOG="$GAME/BepInEx/hotwatch.log"
+DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 TAGS="focus mature chill break modded"
 
-HELP="hotctl commands:
+HELP="hotcli commands:
   start                                  Start the server
-  stop                                   Stop the server (hotwatch won't relaunch it)
+  stop                                   Stop the server
   reboot | restart                       Restart the server
+  start hotwatch | stop hotwatch         Run hotwatch in the background (crash restart, scheduled reboots)
   status                                 Lobby ID, player count, lobby name, next reboot
   players                                Everyone in the lobby
   config                                 Current lobby settings
@@ -20,8 +23,10 @@ HELP="hotctl commands:
   tag add|remove <tag>                   Tags: focus, mature, chill, break, modded
 "
 
-running() { pgrep -f 'OnTogether\.exe' >/dev/null; }
-launch()  { DISPLAY="${DISPLAY:-:1}" steam -applaunch "$APPID" >/dev/null 2>&1 & disown; }
+server_running() { pgrep -f 'OnTogether\.exe.*-batchmode' >/dev/null; }   # our headless instance
+game_running()   { pgrep -f 'OnTogether\.exe' >/dev/null; }                # any instance, incl. normal play
+watch_running()  { pgrep -f -- "$DIR/hotwatch" >/dev/null; }
+launch()  { DISPLAY="${DISPLAY:-:1}" steam -applaunch "$APPID" $LAUNCH_ARGS >/dev/null 2>&1 & disown; }
 die()     { echo "$*" >&2; exit 1; }
 
 # Send the command to the running server and print its reply
@@ -42,29 +47,49 @@ cfg_set()  {
   awk -v k="$1" -v v="$2" 'index($0, k " = ") == 1 { cr = sub(/\r$/, ""); print k " = " v (cr ? "\r" : ""); next } { print }' "$CFG" > "$CFG.tmp" \
     && mv "$CFG.tmp" "$CFG"
 }
+PORT="$(cfg_get Port 2>/dev/null)"; PORT="${PORT:-27555}"
 
 case "${1:-help}" in help|-h|--help) echo "$HELP"; exit 0 ;; esac
 [[ "$1" == restart ]] && set -- reboot "${@:2}"
 
+# hotwatch runs on its own, whether the server is up or not
+if [[ "${2,,}" == hotwatch ]]; then
+  case "$1" in
+    start)
+      watch_running && die "hotwatch is already running"
+      setsid -f "$DIR/hotwatch" >> "$WATCH_LOG" 2>&1 < /dev/null
+      echo "hotwatch started (log: $WATCH_LOG)"
+      ;;
+    stop)
+      watch_running || die "hotwatch isn't running"
+      pkill -f -- "$DIR/hotwatch"
+      echo "hotwatch stopped"
+      ;;
+    *) die "usage: hotcli start hotwatch | hotcli stop hotwatch" ;;
+  esac
+  exit 0
+fi
 
 if { exec 3<>"/dev/tcp/127.0.0.1/$PORT"; } 2>/dev/null; then
   if [[ "$1" == reboot ]]; then
     send reboot >/dev/null
-    for _ in $(seq 60); do running || break; sleep 1; done
+    for _ in $(seq 60); do server_running || break; sleep 1; done
     launch
     echo "Rebooting HOTServer"
     exit 0
   fi
   send "$@"
+  [[ "$1" == status ]] && { watch_running && echo "hotwatch=running" || echo "hotwatch=off"; }
   exit 0
 fi
 
-if running; then
+if server_running; then
   die "The game is running but HOTServer isn't answering yet (still starting, or the config has Enabled = false). Try again in a moment."
 fi
 
 case "$1" in
   start)
+    game_running && die "On-Together is open normally. Close it first, then: hotcli start"
     launch
     echo "Starting server HOTServer"
     ;;
@@ -81,7 +106,7 @@ case "$1" in
 
   set)
     need_cfg
-    [[ -n "$2" && -n "$3" ]] || die "usage: hotctl set <name|maxplayers|public|voice|request> <value>"
+    [[ -n "$2" && -n "$3" ]] || die "usage: hotcli set <name|maxplayers|public|voice|request> <value>"
     val="${*:3}"
     case "${2,,}" in
       name)       cfg_set Name "$val" ;;
@@ -97,7 +122,7 @@ case "$1" in
   tag)
     need_cfg
     op="${2,,}"; tag="${3,,}"
-    [[ ( "$op" == add || "$op" == remove ) && -n "$tag" ]] || die "usage: hotctl tag <add|remove> <tag>   (tags: ${TAGS// /,})"
+    [[ ( "$op" == add || "$op" == remove ) && -n "$tag" ]] || die "usage: hotcli tag <add|remove> <tag>   (tags: ${TAGS// /,})"
     [[ " $TAGS " == *" $tag "* ]] || die "ERR unknown tag (tags: ${TAGS// /,})"
     new=""
     for t in $(cfg_get Tags | tr ',' ' ' | tr '[:upper:]' '[:lower:]'); do
@@ -110,10 +135,10 @@ case "$1" in
     ;;
 
   status|players|reboot)
-    die "HOTServer isn't running. Start it first: hotctl start"
+    die "HOTServer isn't running. Start it first: hotcli start"
     ;;
 
   *)
-    die "ERR unknown command (try: hotctl help)"
+    die "ERR unknown command (try: hotcli help)"
     ;;
 esac

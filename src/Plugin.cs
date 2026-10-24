@@ -34,15 +34,17 @@ public class HOTServerPlugin : BaseUnityPlugin
     TcpListener _listener;
     DateTime _nextReboot = DateTime.MaxValue;
     bool _quitting;
+    bool _active;
 
-    // Marker for hotwatch: present = stopped on purpose, don't relaunch
+
+    // stopped on purpose, don't relaunch
     static string StopFlag => Path.Combine(Paths.BepInExRootPath, "hotserver.stopped");
 
     void Awake()
     {
         _enabled        = Config.Bind("General", "Enabled", true,
                               "Auto-creates the server when you reach the main menu.\n" +
-                              "true  = this system runs as a headless server (auto-hosts on game launch).\n" +
+                              "true  = this system runs as a headless server (auto-hosts on game launch only when -batchmode arg exists).\n" +
                               "false = the mod does nothing. Mainly for playing the game normally.");
         _port           = Config.Bind("General", "Port", 27555,
                               "Port that the server should listen on.\n" +
@@ -57,8 +59,8 @@ public class HOTServerPlugin : BaseUnityPlugin
         _request        = Config.Bind("Lobby", "RequestToJoin", false, "Players must request to join.");
         _tags           = Config.Bind("Lobby", "Tags", "focus", "List of tags, comma separated: focus,mature,chill,break,modded");
 
-        if (!_enabled.Value) { Logger.LogInfo("HOTServer disabled (set Enabled=true)."); return; }
-
+        if (!_enabled.Value || !Application.isBatchMode) { Logger.LogInfo("HOTServer idle (needs Enabled = true and -batchmode)."); return; }
+        _active = true;
         // Game is running on purpose now, so crash-restart is armed again
         try { if (File.Exists(StopFlag)) File.Delete(StopFlag); } catch (Exception e) { Logger.LogWarning("Stop flag: " + e.Message); }
 
@@ -80,7 +82,7 @@ public class HOTServerPlugin : BaseUnityPlugin
             foreach (var cam in Camera.allCameras) cam.enabled = false;
     }
 
-    // Next occurrence of RebootTime strictly in the future (so a relaunch right after a reboot doesn't loop)
+    // Next occurrence of RebootTime
     void ScheduleReboot()
     {
         if (!_rebootEnabled.Value) { _nextReboot = DateTime.MaxValue; return; }
@@ -106,7 +108,7 @@ public class HOTServerPlugin : BaseUnityPlugin
 
     void Update()
     {
-        if (!_enabled.Value) return;
+        if (!_active) return;
 
         while (_cmds.TryDequeue(out var item))
         {
@@ -117,7 +119,7 @@ public class HOTServerPlugin : BaseUnityPlugin
         if (!_quitting && DateTime.Now >= _nextReboot)
         {
             Logger.LogInfo("Scheduled reboot.");
-            Quit(intentionalStop: false); // no stop flag -> hotwatch relaunches
+            Quit(intentionalStop: false); // Hotwatch will reboot it for us
             return;
         }
 
@@ -270,7 +272,7 @@ public class HOTServerPlugin : BaseUnityPlugin
 
             case "reboot":
                 Quit(intentionalStop: false);
-                return "OK rebooting (hotwatch relaunches)";
+                return "OK rebooting";
 
             case "stop":
                 Quit(intentionalStop: true);

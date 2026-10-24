@@ -1,11 +1,10 @@
-# hotctl <command...>   e.g. hotctl status | hotctl set name My Room | hotctl players | hotctl start
+# hotcli <command...>   e.g. hotcli status | hotcli set name My Room | hotcli players | hotcli start
 # Windows version. Can live anywhere; finds the game through Steam.
-
-$Port  = if ($env:HOTCTL_PORT) { [int]$env:HOTCTL_PORT } else { 27555 }
 $AppId = 3707400
+$LaunchArgs = '-batchmode'   # passed to the game only when we start it, so normal play from Steam stays normal
 
-# Find the game folder through Steam (registry -> libraryfolders.vdf), since these scripts can live anywhere.
-# Set HOT_GAME to skip the lookup.
+# Find the game folder through Steam
+# Set a HOT_GAME environment variable to skip the lookup or override
 function Find-GameDir {
     if ($env:HOT_GAME) { return $env:HOT_GAME }
     $steam = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamPath
@@ -27,10 +26,11 @@ function Find-GameDir {
 $Tags  = @('focus', 'mature', 'chill', 'break', 'modded')
 
 $Help = @"
-hotctl commands:
+hotcli commands:
   start                                  Start the server
-  stop                                   Stop the server (hotwatch won't relaunch it)
+  stop                                   Stop the server
   reboot | restart                       Restart the server
+  start hotwatch | stop hotwatch         Run hotwatch in the background (crash restart, scheduled reboots)
   status                                 Lobby ID, player count, lobby name, next reboot
   players                                Everyone in the lobby
   config                                 Current lobby settings
@@ -46,8 +46,18 @@ $Game  = Find-GameDir
 $Cfg   = Join-Path $Game 'BepInEx\config\awe.hotserver.cfg'
 $Flag  = Join-Path $Game 'BepInEx\hotserver.stopped'   # tells hotwatch that we stopped on purpose so it doesnt try to restart thinking it was a crash
 
-function Test-Running { [bool](Get-Process -Name OnTogether -ErrorAction SilentlyContinue) }
-function Start-Game   { Start-Process "steam://rungameid/$AppId" }
+$WatchLog = Join-Path $Game 'BepInEx\hotwatch.log'
+
+function Get-GameProcs     { @(Get-CimInstance Win32_Process -Filter "Name='OnTogether.exe'" -ErrorAction SilentlyContinue) }
+function Test-Running      { [bool](Get-GameProcs | Where-Object { $_.CommandLine -match '-batchmode' }) }   # our headless instance
+function Test-GameRunning  { [bool](Get-GameProcs) }                                                        # any instance, incl. normal play
+function Get-WatchProcs    { @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction SilentlyContinue |
+                               Where-Object { $_.CommandLine -like '*hotwatch.ps1*' }) }
+function Start-Game {
+    $steamExe = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamExe
+    if ($steamExe -and (Test-Path $steamExe)) { Start-Process $steamExe -ArgumentList '-applaunch', $AppId, $LaunchArgs }
+    else { Start-Process "steam://run/$AppId//$LaunchArgs/" }
+}
 function Fail($msg)   { [Console]::Error.WriteLine($msg); exit 1 }
 
 # Send one command to the running server and print its reply
@@ -73,6 +83,7 @@ function Get-CfgValue($key) {
     foreach ($l in [IO.File]::ReadAllLines($Cfg)) { if ($l.StartsWith("$key = ")) { return $l.Substring($key.Length + 3) } }
     return ''
 }
+$Port = if ((Test-Path $Cfg) -and (Get-CfgValue 'Port')) { [int](Get-CfgValue 'Port') } else { 27555 }
 function Set-CfgValue($key, $value) {
     $lines = [IO.File]::ReadAllLines($Cfg)
     for ($i = 0; $i -lt $lines.Length; $i++) { if ($lines[$i].StartsWith("$key = ")) { $lines[$i] = "$key = $value" } }
@@ -81,6 +92,25 @@ function Set-CfgValue($key, $value) {
 
 if ($argv[0] -eq 'restart') { $argv[0] = 'reboot' }
 $cmd = $argv[0].ToLower()
+
+# hotwatch runs on its own, whether the server is up or not
+if ($argv.Count -gt 1 -and $argv[1].ToLower() -eq 'hotwatch') {
+    switch ($cmd) {
+        'start' {
+            if (Get-WatchProcs) { Fail 'hotwatch is already running' }
+            Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSScriptRoot\hotwatch.ps1`""
+            Write-Output "hotwatch started (log: $WatchLog)"
+        }
+        'stop' {
+            $procs = Get-WatchProcs
+            if (-not $procs) { Fail "hotwatch isn't running" }
+            $procs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+            Write-Output 'hotwatch stopped'
+        }
+        default { Fail 'usage: hotcli start hotwatch | hotcli stop hotwatch' }
+    }
+    exit 0
+}
 
 $client = New-Object Net.Sockets.TcpClient
 try { $client.Connect('127.0.0.1', $Port); $online = $true } catch { $online = $false }
@@ -94,6 +124,7 @@ if ($online) {
         exit 0
     }
     Send-Line $client ($argv -join ' ')
+    if ($cmd -eq 'status') { Write-Output $(if (Get-WatchProcs) { 'hotwatch=running' } else { 'hotwatch=off' }) }
     exit 0
 }
 
@@ -103,6 +134,7 @@ if (Test-Running) {
 
 switch ($cmd) {
     'start' {
+        if (Test-GameRunning) { Fail 'On-Together is open normally. Close it first, then: hotcli start' }
         Start-Game
         Write-Output 'Starting server HOTServer'
     }
@@ -121,7 +153,7 @@ switch ($cmd) {
 
     'set' {
         Assert-Cfg
-        if ($argv.Count -lt 3) { Fail 'usage: hotctl set <name|maxplayers|public|voice|request> <value>' }
+        if ($argv.Count -lt 3) { Fail 'usage: hotcli set <name|maxplayers|public|voice|request> <value>' }
         $val = ($argv[2..($argv.Count - 1)] -join ' ')
         switch ($argv[1].ToLower()) {
             'name'       { Set-CfgValue 'Name' $val }
@@ -138,7 +170,7 @@ switch ($cmd) {
         Assert-Cfg
         $op  = if ($argv.Count -gt 1) { $argv[1].ToLower() } else { '' }
         $tag = if ($argv.Count -gt 2) { $argv[2].ToLower() } else { '' }
-        if (@('add', 'remove') -notcontains $op -or -not $tag) { Fail "usage: hotctl tag <add|remove> <tag>   (tags: $($Tags -join ','))" }
+        if (@('add', 'remove') -notcontains $op -or -not $tag) { Fail "usage: hotcli tag <add|remove> <tag>   (tags: $($Tags -join ','))" }
         if ($Tags -notcontains $tag) { Fail "ERR unknown tag (tags: $($Tags -join ','))" }
         $current = @((Get-CfgValue 'Tags').ToLower() -split '[,\s]+' | Where-Object { $_ -and $_ -ne $tag })
         if ($op -eq 'add') { $current += $tag }
@@ -148,10 +180,10 @@ switch ($cmd) {
     }
 
     { @('status', 'players', 'reboot') -contains $_ } {
-        Fail "HOTServer isn't running. Start it first: hotctl start"
+        Fail "HOTServer isn't running. Start it first: hotcli start"
     }
 
     default {
-        Fail 'ERR unknown command (try: hotctl help)'
+        Fail 'ERR unknown command (try: hotcli help)'
     }
 }

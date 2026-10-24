@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Double-click (or run) to start HOTServer and get a terminal with hotcli ready to use.
+DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+
+# Opened by double-click with no terminal attached: reopen ourselves inside one
+if [[ ! -t 0 || ! -t 1 ]]; then
+  for t in "$TERMINAL" kitty konsole gnome-terminal xfce4-terminal alacritty foot xterm; do
+    [[ -n "$t" ]] && command -v "$t" >/dev/null || continue
+    case "$t" in
+      kitty|foot)     exec "$t" "$DIR/linux_run.sh" ;;
+      gnome-terminal) exec "$t" -- "$DIR/linux_run.sh" ;;
+      xfce4-terminal) exec "$t" -x "$DIR/linux_run.sh" ;;
+      *)              exec "$t" -e "$DIR/linux_run.sh" ;;
+    esac
+  done
+  exit 1
+fi
+
+export PATH="$DIR/scripts:$PATH"
+
+echo
+hotcli help
+echo "Type hotcli commands here, e.g.  hotcli status"
+echo "Start the server using hotcli start"
+echo "Closing this terminal does NOT stop the server. Use  hotcli stop  for that"
+echo
+
+exec "${SHELL:-bash}"

@@ -3,7 +3,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>HOTServer</AssemblyName>
     <LangVersion>latest</LangVersion>
-    <Version>0.2.1</Version>
+    <Version>0.3.0</Version>
     <Nullable>disable</Nullable>
     <GameDir Condition="'$(GameDir)'==''">$(HOME)/.local/share/Steam/steamapps/common/On-Together/On-Together</GameDir>
     <Managed>$(GameDir)/OnTogether_Data/Managed</Managed>
