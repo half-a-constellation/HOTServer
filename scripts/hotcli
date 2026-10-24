@@ -2,11 +2,8 @@
 # hotcli <command...>   e.g. hotcli status | hotcli set name My Room | hotcli players | hotcli start
 APPID=3707400
 LAUNCH_ARGS="-batchmode" # Required for headless
-GAME="${HOT_GAME:-$HOME/.local/share/Steam/steamapps/common/On-Together/On-Together}"
-CFG="$GAME/BepInEx/config/awe.hotserver.cfg"
-FLAG="$GAME/BepInEx/hotserver.stopped"   # tells hotwatch that we stopped on purpose so it doesnt try to restart thinking it was a crash
-WATCH_LOG="$GAME/BepInEx/hotwatch.log"
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+PATHS_FILE="$DIR/../hotserver.paths"   # remembers which BepInEx folder HOTServer is installed in (written by hotcli setup)
 TAGS="focus mature chill break modded"
 
 HELP="hotcli commands:
@@ -14,6 +11,7 @@ HELP="hotcli commands:
   stop                                   Stop the server
   reboot | restart                       Restart the server
   start hotwatch | stop hotwatch         Run hotwatch in the background (crash restart, scheduled reboots)
+  setup                                  Find where HOTServer is installed (runs automatically the first time)
   status                                 Lobby ID, player count, lobby name, next reboot
   players                                Everyone in the lobby
   config                                 Current lobby settings
@@ -27,7 +25,13 @@ HELP="hotcli commands:
 server_running() { pgrep -f 'OnTogether\.exe.*-batchmode' >/dev/null; }   # our headless instance
 game_running()   { pgrep -f 'OnTogether\.exe' >/dev/null; }                # any instance, incl. normal play
 watch_running()  { pgrep -f -- "$DIR/hotwatch" >/dev/null; }
-launch()  { DISPLAY="${DISPLAY:-:1}" steam -applaunch "$APPID" $LAUNCH_ARGS >/dev/null 2>&1 & disown; }
+# Mod manager profile (r2modman, Gale): BepInEx isn't in the game folder, so point the game at the profile
+is_profile() { [[ ! -f "$ROOT/../OnTogether.exe" ]]; }
+launch()  {
+  local args=($LAUNCH_ARGS)
+  is_profile && args+=(--doorstop-enabled true --doorstop-target-assembly "Z:$ROOT/core/BepInEx.Preloader.dll")
+  DISPLAY="${DISPLAY:-:1}" steam -applaunch "$APPID" "${args[@]}" >/dev/null 2>&1 & disown
+}
 die()     { echo "$*" >&2; exit 1; }
 
 # Send the command to the running server and print its reply
@@ -48,9 +52,57 @@ cfg_set()  {
   awk -v k="$1" -v v="$2" 'index($0, k " = ") == 1 { cr = sub(/\r$/, ""); print k " = " v (cr ? "\r" : ""); next } { print }' "$CFG" > "$CFG.tmp" \
     && mv "$CFG.tmp" "$CFG"
 }
-PORT="$(cfg_get Port 2>/dev/null)"; PORT="${PORT:-27555}"
+# Every HOTServer.dll under the Steam game folders and mod manager profiles -> its BepInEx folder
+find_installs() {
+  local bases=() vdf lib b
+  for vdf in "$HOME/.local/share/Steam/steamapps/libraryfolders.vdf" "$HOME/.steam/steam/steamapps/libraryfolders.vdf" \
+             "$HOME/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/libraryfolders.vdf"; do
+    [[ -f "$vdf" ]] || continue
+    while read -r lib; do bases+=("$lib/steamapps/common/On-Together/On-Together/BepInEx"); done \
+      < <(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\(.*\)".*/\1/p' "$vdf")
+  done
+  bases+=("$HOME/.config/r2modmanPlus-local" "$HOME/.var/app/com.github.ebkr.r2modmanPlus/config/r2modmanPlus-local"
+          "$HOME/.local/share/com.kesomannen.gale")
+  for b in "${bases[@]}"; do
+    [[ -d "$b" ]] && find "$b/" -maxdepth 9 -type f -name HOTServer.dll -path '*/BepInEx/plugins/*' 2>/dev/null
+  done | sed 's|/BepInEx/plugins/.*|/BepInEx|' | while read -r p; do readlink -f "$p"; done | sort -u
+}
+
+setup() {
+  local found=() root="" ans i
+  mapfile -t found < <(find_installs)
+  if (( ${#found[@]} == 1 )); then
+    read -rp "Found HOTServer in ${found[0]}. Use this? [Y/n] " ans
+    [[ "${ans,,}" == n* ]] || root="${found[0]}"
+  elif (( ${#found[@]} > 1 )); then
+    echo "Found HOTServer in several places:"
+    for i in "${!found[@]}"; do echo "  $((i + 1))) ${found[$i]}"; done
+    read -rp "Pick one [1-${#found[@]}]: " ans
+    [[ "$ans" =~ ^[0-9]+$ ]] && (( ans >= 1 && ans <= ${#found[@]} )) && root="${found[$((ans - 1))]}"
+  fi
+  if [[ -z "$root" ]]; then
+    read -rp "Enter the BepInEx folder HOTServer is installed in (e.g. .../On-Together/BepInEx): " root
+    root="${root/#\~/$HOME}"
+  fi
+  root="${root%/}"
+  [[ -d "$root/plugins" ]] || die "Not a BepInEx folder: $root"
+  echo "BEPINEX=$root" > "$PATHS_FILE" || die "Couldn't write $PATHS_FILE"
+  ROOT="$root"
+  echo "Saved to $(readlink -f "$PATHS_FILE"). Run 'hotcli setup' to change it."
+}
 
 case "${1:-help}" in help|-h|--help) echo "$HELP"; exit 0 ;; esac
+[[ "$1" == setup ]] && { setup; exit 0; }
+
+ROOT="$(sed -n 's/^BEPINEX=//p' "$PATHS_FILE" 2>/dev/null)"
+if [[ -z "$ROOT" ]]; then
+  [[ -t 0 ]] || die "HOTServer location unknown. Run: hotcli setup"
+  setup
+fi
+CFG="$ROOT/config/awe.hotserver.cfg"
+FLAG="$ROOT/hotserver.stopped"   # tells hotwatch that we stopped on purpose so it doesnt try to restart thinking it was a crash
+WATCH_LOG="$ROOT/hotwatch.log"
+PORT="$(cfg_get Port 2>/dev/null)"; PORT="${PORT:-27555}"
 [[ "$1" == restart ]] && set -- reboot "${@:2}"
 
 # hotwatch runs on its own, whether the server is up or not
@@ -58,7 +110,7 @@ if [[ "${2,,}" == hotwatch ]]; then
   case "$1" in
     start)
       watch_running && die "hotwatch is already running"
-      setsid -f "$DIR/hotwatch" >> "$WATCH_LOG" 2>&1 < /dev/null
+      setsid -f bash "$DIR/hotwatch" >> "$WATCH_LOG" 2>&1 < /dev/null
       echo "hotwatch started (log: $WATCH_LOG)"
       ;;
     stop)

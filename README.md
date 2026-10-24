@@ -11,7 +11,7 @@ Just don’t run it on a cheap VPS in summer *wink*
 
 ## DISCLAIMER
 The mod only runs when the game is started by `hotcli start`. If you wish to play on the same system, just launch the game from Steam.
-Mod managers are NOT supported yet. Ill try in a future version. Install mods manually via `BepInEx/plugins` and run it via `hotcli`
+Mod manager installs (r2modman, Gale) are experimental and untested.
 
 ## Features
 
@@ -32,7 +32,7 @@ Being a mod itself, its compatible with other BepInEx mods (such as Heartbeat). 
 Adds no overhead on top of the game. This mod simply enables the creation of the server using the game's own functionality.
 
 ## Config
-All your server information and config data lives in `GAME_FOLDER/BepInEx/config/awe.hotserver.cfg`. If you wish to edit it manually, you can.
+All your server information and config data lives in `GAME_FOLDER/BepInEx/config/awe.hotserver.cfg` (or in your mod manager profile's `BepInEx/config`). If you wish to edit it manually, you can.
 
 ## Setup
 See the [Windows setup guide](docs/setup/windows.md) for running HOTServer on a windows desktop.  
@@ -45,6 +45,7 @@ See the [VPS setup guide](docs/setup/vps.md) for running HOTServer on a linux cl
 | Command | What it does |
 | --- | --- |
 | `hotcli help` | Lists all commands |
+| `hotcli setup` | Runs setup (required) (runs automatically the first time) |
 | `hotcli start` | Starts the server (Runs steam game) |
 | `hotcli status` | Shows server status (Lobby ID, Player count, Lobby name, next reboot, HOTWatch) |
 | `hotcli players` | Lists everyone in the lobby with SteamID and name |

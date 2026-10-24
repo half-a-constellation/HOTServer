@@ -17,6 +17,8 @@ if [[ ! -t 0 || ! -t 1 ]]; then
 fi
 
 export PATH="$DIR/scripts:$PATH"
+chmod +x "$DIR/scripts/hotcli" "$DIR/scripts/hotwatch" 2>/dev/null   # mod managers may drop the executable bit
+[[ -f "$DIR/hotserver.paths" ]] || hotcli setup   # first run: find where HOTServer is installed
 
 echo
 hotcli help

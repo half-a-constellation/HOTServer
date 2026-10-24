@@ -1,12 +1,12 @@
 # hotcli <command...>   e.g. hotcli status | hotcli set name My Room | hotcli players | hotcli start
-# Windows version. Can live anywhere; finds the game through Steam.
+# Windows version. Can live anywhere; finds HOTServer through Steam and mod manager profiles.
 $AppId = 3707400
 $LaunchArgs = '-batchmode'   # passed to the game only when we start it, so normal play from Steam stays normal
 
-# Find the game folder through Steam
-# Set a HOT_GAME environment variable to skip the lookup or override
-function Find-GameDir {
-    if ($env:HOT_GAME) { return $env:HOT_GAME }
+$PathsFile = Join-Path (Split-Path $PSScriptRoot -Parent) 'hotserver.paths'   # remembers which BepInEx folder HOTServer is installed in (written by hotcli setup)
+
+# Steam library folders, from the registry and libraryfolders.vdf
+function Get-SteamLibs {
     $steam = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamPath
     if (-not $steam) { $steam = "${env:ProgramFiles(x86)}\Steam" }
     $libs = @($steam)
@@ -16,12 +16,39 @@ function Find-GameDir {
             if ($l -match '^\s*"path"\s+"(.+)"') { $libs += ($Matches[1] -replace '\\\\', '\') }
         }
     }
-    foreach ($lib in $libs) {
-        $dir = Join-Path $lib 'steamapps\common\On-Together\On-Together'
-        if (Test-Path $dir) { return $dir }
+    $libs
+}
+
+# Every HOTServer.dll under the Steam game folders and mod manager profiles -> its BepInEx folder
+function Find-Installs {
+    $bases = @(Get-SteamLibs | ForEach-Object { Join-Path $_ 'steamapps\common\On-Together\On-Together\BepInEx' })
+    $bases += "$env:APPDATA\r2modmanPlus-local", "$env:APPDATA\com.kesomannen.gale", "$env:APPDATA\Thunderstore Mod Manager\DataFolder"
+    $bases | Where-Object { Test-Path $_ } | ForEach-Object {
+        Get-ChildItem -Path $_ -Filter 'HOTServer.dll' -Recurse -Depth 8 -File -ErrorAction SilentlyContinue
+    } | ForEach-Object {
+        $i = $_.FullName.IndexOf('\BepInEx\plugins\', [StringComparison]::OrdinalIgnoreCase)
+        if ($i -ge 0) { $_.FullName.Substring(0, $i + 8) }
+    } | Sort-Object -Unique
+}
+
+function Invoke-Setup {
+    $found = @(Find-Installs)
+    $root = $null
+    if ($found.Count -eq 1) {
+        $ans = Read-Host "Found HOTServer in $($found[0]). Use this? [Y/n]"
+        if ($ans -notmatch '^[nN]') { $root = $found[0] }
+    } elseif ($found.Count -gt 1) {
+        Write-Host 'Found HOTServer in several places:'
+        for ($i = 0; $i -lt $found.Count; $i++) { Write-Host "  $($i + 1)) $($found[$i])" }
+        $ans = Read-Host "Pick one [1-$($found.Count)]"
+        if ($ans -match '^\d+$' -and [int]$ans -ge 1 -and [int]$ans -le $found.Count) { $root = $found[[int]$ans - 1] }
     }
-    [Console]::Error.WriteLine('Could not find On-Together. Set HOT_GAME to the game folder (the one with OnTogether.exe).')
-    exit 1
+    if (-not $root) { $root = Read-Host 'Enter the BepInEx folder HOTServer is installed in (e.g. ...\On-Together\BepInEx)' }
+    $root = "$root".Trim().Trim('"').TrimEnd('\')
+    if (-not $root -or -not (Test-Path (Join-Path $root 'plugins'))) { Fail "Not a BepInEx folder: $root" }
+    [IO.File]::WriteAllText($PathsFile, "BEPINEX=$root`n", (New-Object Text.UTF8Encoding $false))
+    Write-Host "Saved to $PathsFile. Run 'hotcli setup' to change it."
+    $root
 }
 $Tags  = @('focus', 'mature', 'chill', 'break', 'modded')
 
@@ -31,6 +58,7 @@ hotcli commands:
   stop                                   Stop the server
   reboot | restart                       Restart the server
   start hotwatch | stop hotwatch         Run hotwatch in the background (crash restart, scheduled reboots)
+  setup                                  Find where HOTServer is installed (runs automatically the first time)
   status                                 Lobby ID, player count, lobby name, next reboot
   players                                Everyone in the lobby
   config                                 Current lobby settings
@@ -43,11 +71,18 @@ hotcli commands:
 
 $argv = @($args)
 if ($argv.Count -eq 0 -or @('help', '-h', '--help') -contains $argv[0]) { Write-Output $Help; exit 0 }
-$Game  = Find-GameDir
-$Cfg   = Join-Path $Game 'BepInEx\config\awe.hotserver.cfg'
-$Flag  = Join-Path $Game 'BepInEx\hotserver.stopped'   # tells hotwatch that we stopped on purpose so it doesnt try to restart thinking it was a crash
+function Fail($msg)   { [Console]::Error.WriteLine($msg); exit 1 }
+if ($argv[0] -eq 'setup') { Invoke-Setup | Out-Null; exit 0 }
 
-$WatchLog = Join-Path $Game 'BepInEx\hotwatch.log'
+$Root = $null
+if (Test-Path $PathsFile) { foreach ($l in [IO.File]::ReadAllLines($PathsFile)) { if ($l.StartsWith('BEPINEX=')) { $Root = $l.Substring(8) } } }
+if (-not $Root) { $Root = Invoke-Setup }
+$Cfg   = Join-Path $Root 'config\awe.hotserver.cfg'
+$Flag  = Join-Path $Root 'hotserver.stopped'   # tells hotwatch that we stopped on purpose so it doesnt try to restart thinking it was a crash
+
+$WatchLog = Join-Path $Root 'hotwatch.log'
+# Mod manager profile (r2modman, Gale, Thunderstore app): BepInEx isn't in the game folder, so point the game at the profile
+$IsProfile = -not (Test-Path (Join-Path (Split-Path $Root -Parent) 'OnTogether.exe'))
 
 function Get-GameProcs     { @(Get-CimInstance Win32_Process -Filter "Name='OnTogether.exe'" -ErrorAction SilentlyContinue) }
 function Test-Running      { [bool](Get-GameProcs | Where-Object { $_.CommandLine -match '-batchmode' }) }   # our headless instance
@@ -55,11 +90,12 @@ function Test-GameRunning  { [bool](Get-GameProcs) }                            
 function Get-WatchProcs    { @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction SilentlyContinue |
                                Where-Object { $_.CommandLine -like '*hotwatch.ps1*' }) }
 function Start-Game {
+    $gameArgs = @($LaunchArgs)
+    if ($IsProfile) { $gameArgs += '--doorstop-enabled', 'true', '--doorstop-target-assembly', "`"$(Join-Path $Root 'core\BepInEx.Preloader.dll')`"" }
     $steamExe = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamExe
-    if ($steamExe -and (Test-Path $steamExe)) { Start-Process $steamExe -ArgumentList '-applaunch', $AppId, $LaunchArgs }
-    else { Start-Process "steam://run/$AppId//$LaunchArgs/" }
+    if ($steamExe -and (Test-Path $steamExe)) { Start-Process $steamExe -ArgumentList (@('-applaunch', $AppId) + $gameArgs) }
+    else { Start-Process "steam://run/$AppId//$($gameArgs -join ' ')/" }
 }
-function Fail($msg)   { [Console]::Error.WriteLine($msg); exit 1 }
 
 # Send one command to the running server and print its reply
 function Send-Line($client, $line) {
