@@ -33,7 +33,7 @@ Being a mod itself, it's compatible with other BepInEx mods (such as Heartbeat).
 Adds no overhead on top of the game. This mod simply enables the creation of the server using the game's own functionality.
 
 ## Config
-All your server information and config data lives in `GAME_FOLDER/BepInEx/config/awe.hotserver.cfg` (or in your mod manager profile's `BepInEx/config`). If you wish to edit it manually, you can.
+All your server information and config data lives in `GAME_FOLDER/BepInEx/config/awe.hotserver.cfg` (or your manager's `BepInEx/config`). If you wish to edit it manually, you can.
 
 ## Setup
 ### Mod manager installations (r2modman, Gale) - experimental  
