@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Double-click (or run) to start HOTServer and get a terminal with hotcli ready to use.
+# Run to get a terminal with HOTCli ready to use.
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 
 # Opened by double-click with no terminal attached: reopen ourselves inside one

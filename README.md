@@ -3,7 +3,11 @@
 
 Just don’t run it on a cheap VPS in summer *wink*
 
-This mod has been tested to work on Linux. 
+![Linux](https://img.shields.io/badge/Linux-tested-brightgreen?logo=linux&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-experimental-orange?logo=windows&logoColor=white)
+![BepInEx](https://img.shields.io/badge/BepInEx-5.4.23.5-blue)
+![Release](https://img.shields.io/github/v/release/half-a-constellation/HOTServer)
+![License](https://img.shields.io/github/license/half-a-constellation/HOTServer)
 
 ## DISCLAIMER
 The mod only runs when the game is started by the scripts `linux_run.sh` `windows_run.cmd` or `hotcli start` If you wish to play on the same system, just launch the game from Steam.
