@@ -1,5 +1,5 @@
 ### 1. Install HOTServer with your mod manager.
-BepInEx is installed automatically.
+BepInEx is installed automatically.  
 **LINUX ONLY** set the launch options (Steam → On-Together → Properties → Launch Options) to `WINEDLLOVERRIDES="winhttp=n,b" %command%`
 ### 2. Run the game
 Click **Start modded** once, then close the game. This creates the config file.
