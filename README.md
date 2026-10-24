@@ -10,7 +10,8 @@ Just don’t run it on a cheap VPS in summer *wink*
 ![License](https://img.shields.io/github/license/half-a-constellation/HOTServer)
 
 ## DISCLAIMER
-The mod only runs when the game is started by the scripts `linux_run.sh` `windows_run.cmd` or `hotcli start` If you wish to play on the same system, just launch the game from Steam.
+The mod only runs when the game is started by `hotcli start`. If you wish to play on the same system, just launch the game from Steam.
+Mod managers are NOT supported yet. Install mods manually via `BepInEx/plugins` and run it via `hotcli`
 
 ## Features
 
