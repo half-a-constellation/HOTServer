@@ -8,6 +8,7 @@ Just don’t run it on a cheap VPS in summer *wink*
 ![BepInEx](https://img.shields.io/badge/BepInEx-5.4.23.5-blue)
 ![Release](https://img.shields.io/github/v/release/half-a-constellation/HOTServer)
 ![License](https://img.shields.io/github/license/half-a-constellation/HOTServer)
+> **Thunderstore / mod manager users:** the mod alone isn't enough. You also need the HOTServer scripts to start and control the server: download `HOTServer-Scripts_<version>.zip` from the [GitHub releases](https://github.com/half-a-constellation/HOTServer/releases).
 
 ## DISCLAIMER
 The mod only runs when the game is started by `hotcli start`. If you wish to play on the same system, just launch the game from Steam.
@@ -35,10 +36,13 @@ Adds no overhead on top of the game. This mod simply enables the creation of the
 All your server information and config data lives in `GAME_FOLDER/BepInEx/config/awe.hotserver.cfg` (or in your mod manager profile's `BepInEx/config`). If you wish to edit it manually, you can.
 
 ## Setup
-Note: The following setup instructions are for non-mod manager setups. For mod manager setups, please read the instructions on the store page.
-See the [Windows setup guide](docs/setup/windows.md) for running HOTServer on a windows desktop.  
-See the [Linux setup guide](docs/setup/linux.md) for running HOTServer on a linux desktop.  
-See the [VPS setup guide](docs/setup/vps.md) for running HOTServer on a linux cloud server.  
+### Mod manager installations (r2modman, Gale) - experimental  
+See [Mod manager setup guide](https://github.com/half-a-constellation/HOTServer/blob/main/docs/setup/mod-manager.md) for running HOTServer with a mod manager installation.
+
+### Manual installation (Standard BepInEx)
+See the [Windows setup guide](https://github.com/half-a-constellation/HOTServer/blob/main/docs/setup/windows.md) for running HOTServer on a windows desktop.  
+See the [Linux setup guide](https://github.com/half-a-constellation/HOTServer/blob/main/docs/setup/linux.md) for running HOTServer on a linux desktop.  
+See the [VPS setup guide](https://github.com/half-a-constellation/HOTServer/blob/main/docs/setup/vps.md) for running HOTServer on a linux cloud server.  
 
 
 ## CLI Usage

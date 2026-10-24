@@ -1,0 +1,7 @@
+{
+  "name": "HOTServer",
+  "version_number": "0.4.0",
+  "website_url": "https://github.com/half-a-constellation/HOTServer",
+  "description": "Headless On-Together Server. Requires the HOTServer scripts from GitHub releases",
+  "dependencies": ["BepInEx-BepInExPack-5.4.2305"]
+}
