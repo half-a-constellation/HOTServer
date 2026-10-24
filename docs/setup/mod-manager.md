@@ -6,6 +6,6 @@ Click **Start modded** once, then close the game. This creates the config file.
 ### 3. Download the necessary scripts
 Download and extract `HOTServer-Scripts_<version>.zip` from the [GitHub releases](https://github.com/half-a-constellation/HOTServer/releases).
 ### 4. Run the server
-Open `linux_run.sh` or `windows_run.cmd` from the extracted folder, use `hotcli` to edit your config, then run `hotcli start` to run the server.
+Open `linux_run.sh` or `windows_run.cmd` from the extracted folder, use `hotcli` to edit your config, then run `hotcli start` to run the server.  
 ### 5. HOTWatch (Optional)
 Type `hotcli start hotwatch` to start HOTWatch, a service that handles server crashes, prolonged hangs and scheduled reboots. You can stop it using `hotcli stop hotwatch` It runs hidden in the background and logs to BepInEx\hotwatch.log.
