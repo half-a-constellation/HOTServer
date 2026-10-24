@@ -207,7 +207,7 @@ public class HOTServerPlugin : BaseUnityPlugin
         switch (parts[0].ToLowerInvariant())
         {
             case "help":
-                return "status | players | config | set <name|maxplayers|public|voice|request> <value> | tag <add|remove> <tag> | reboot | stop | start";
+                                return "status | players | config | set <name|maxplayers|public|voice|request|reboot> <value> | tag <add|remove> <tag> | reboot | stop | start";
 
             case "status":
             {
@@ -252,7 +252,7 @@ public class HOTServerPlugin : BaseUnityPlugin
             case "config":
                 return $"name=\"{_lobbyName.Value}\" maxplayers={_maxPlayers.Value} public={_public.Value} voice={_voice.Value} request={_request.Value} tags={_tags.Value}";
 
-            case "set":
+                        case "set":
             {
                 if (parts.Length < 3) return "usage: set <key> <value>";
                 var key = parts[1].ToLowerInvariant();
@@ -264,6 +264,16 @@ public class HOTServerPlugin : BaseUnityPlugin
                     case "public":     _public.Value = ParseBool(val); break;
                     case "voice":      _voice.Value = ParseBool(val); break;
                     case "request":    _request.Value = ParseBool(val); break;
+                    case "reboot":
+                        if (val.ToLowerInvariant() == "off") _rebootEnabled.Value = false;
+                        else
+                        {
+                            if (!DateTime.TryParseExact(val, "H:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)) return "ERR format HH:MM (24h) or off";
+                            _rebootTime.Value = val;
+                            _rebootEnabled.Value = true;
+                        }
+                        ScheduleReboot();
+                        return _rebootEnabled.Value ? $"OK next reboot {_nextReboot:yyyy-MM-dd HH:mm}" : "OK reboot off";
                     default: return "ERR unknown key";
                 }
                 PushLive(key);

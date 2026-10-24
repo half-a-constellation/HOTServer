@@ -37,6 +37,7 @@ hotcli commands:
   set name <text>                        Lobby name
   set maxplayers <number>                Player limit
   set public|voice|request true|false    Visibility / voice chat / request to join
+  set reboot <HH:MM|off>                 Daily reboot time (24h), or off
   tag add|remove <tag>                   Tags: focus, mature, chill, break, modded
 "@
 
@@ -153,7 +154,7 @@ switch ($cmd) {
 
     'set' {
         Assert-Cfg
-        if ($argv.Count -lt 3) { Fail 'usage: hotcli set <name|maxplayers|public|voice|request> <value>' }
+        if ($argv.Count -lt 3) { Fail 'usage: hotcli set <name|maxplayers|public|voice|request|reboot> <value>' }
         $val = ($argv[2..($argv.Count - 1)] -join ' ')
         switch ($argv[1].ToLower()) {
             'name'       { Set-CfgValue 'Name' $val }
@@ -161,6 +162,9 @@ switch ($cmd) {
             'public'     { Set-CfgValue 'Public' (Test-Truthy $val) }
             'voice'      { Set-CfgValue 'VoiceChat' (Test-Truthy $val) }
             'request'    { Set-CfgValue 'RequestToJoin' (Test-Truthy $val) }
+            'reboot'     { if ($val.ToLower() -eq 'off') { Set-CfgValue 'RebootEnabled' 'false' }
+                           else { if ($val -notmatch '^([01]?\d|2[0-3]):[0-5]\d$') { Fail 'ERR format HH:MM (24h) or off' }
+                                  Set-CfgValue 'RebootTime' $val; Set-CfgValue 'RebootEnabled' 'true' } }
             default      { Fail 'ERR unknown key' }
         }
         Write-Output 'OK (restart HOTServer to apply)'

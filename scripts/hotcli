@@ -20,6 +20,7 @@ HELP="hotcli commands:
   set name <text>                        Lobby name
   set maxplayers <number>                Player limit
   set public|voice|request true|false    Visibility / voice chat / request to join
+  set reboot <HH:MM|off>                 Daily reboot time (24h), or off
   tag add|remove <tag>                   Tags: focus, mature, chill, break, modded
 "
 
@@ -106,7 +107,7 @@ case "$1" in
 
   set)
     need_cfg
-    [[ -n "$2" && -n "$3" ]] || die "usage: hotcli set <name|maxplayers|public|voice|request> <value>"
+    [[ -n "$2" && -n "$3" ]] || die "usage: hotcli set <name|maxplayers|public|voice|request|reboot> <value>"
     val="${*:3}"
     case "${2,,}" in
       name)       cfg_set Name "$val" ;;
@@ -114,6 +115,9 @@ case "$1" in
       public)     cfg_set Public "$(truthy "$val")" ;;
       voice)      cfg_set VoiceChat "$(truthy "$val")" ;;
       request)    cfg_set RequestToJoin "$(truthy "$val")" ;;
+      reboot)     if [[ "${val,,}" == off ]]; then cfg_set RebootEnabled false
+                  else [[ "$val" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]] || die "ERR format HH:MM (24h) or off"
+                       cfg_set RebootTime "$val"; cfg_set RebootEnabled true; fi ;;
       *)          die "ERR unknown key" ;;
     esac
     echo "OK (restart HOTServer to apply)"

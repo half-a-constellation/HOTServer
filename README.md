@@ -49,6 +49,7 @@ See the [VPS setup guide](docs/setup/vps.md) for running HOTServer on a linux cl
 | `hotcli set public true\|false` | Changes the server visibility |
 | `hotcli set voice true\|false` | Enables / disables voicechat functionality |
 | `hotcli set request true\|false` | Enables / disables 'request to join' |
+| `hotcli set reboot <HH:MM\|off>` | Sets the daily reboot time (24h format), or turns it off |
 | `hotcli tag add <tag>` | Adds a tag to the lobby (focus, mature, chill, break, modded) |
 | `hotcli tag remove <tag>` | Removes a tag from the lobby (focus, mature, chill, break, modded) |
 | `hotcli stop` | Stops the server |
