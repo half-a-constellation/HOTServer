@@ -1,4 +1,3 @@
-0.4.0
+0.4.1
 
-Added mod manager support  
-hotcli searches for the game folder now, and prompts if it finds multiple  
+Concluded some testing of mod manager
