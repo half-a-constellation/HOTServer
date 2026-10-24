@@ -11,7 +11,7 @@ Just don’t run it on a cheap VPS in summer *wink*
 
 ## DISCLAIMER
 The mod only runs when the game is started by `hotcli start`. If you wish to play on the same system, just launch the game from Steam.
-Mod managers are NOT supported yet. Install mods manually via `BepInEx/plugins` and run it via `hotcli`
+Mod managers are NOT supported yet. Ill try in a future version. Install mods manually via `BepInEx/plugins` and run it via `hotcli`
 
 ## Features
 
