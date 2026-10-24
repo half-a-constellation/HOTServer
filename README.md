@@ -35,6 +35,7 @@ Adds no overhead on top of the game. This mod simply enables the creation of the
 All your server information and config data lives in `GAME_FOLDER/BepInEx/config/awe.hotserver.cfg` (or in your mod manager profile's `BepInEx/config`). If you wish to edit it manually, you can.
 
 ## Setup
+Note: The following setup instructions are for non-mod manager setups. For mod manager setups, please read the instructions on the store page.
 See the [Windows setup guide](docs/setup/windows.md) for running HOTServer on a windows desktop.  
 See the [Linux setup guide](docs/setup/linux.md) for running HOTServer on a linux desktop.  
 See the [VPS setup guide](docs/setup/vps.md) for running HOTServer on a linux cloud server.  
