@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,7 +15,7 @@ using Steamworks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[BepInPlugin("awe.hotserver", "HOTServer", "0.1.0")]
+[BepInPlugin("awe.hotserver", "HOTServer", "0.5.0")]
 public class HOTServerPlugin : BaseUnityPlugin
 {
     const int MenuScene = 1;   // SceneManager.LoadScene(1) = The game's main menu
@@ -35,6 +36,7 @@ public class HOTServerPlugin : BaseUnityPlugin
     DateTime _nextReboot = DateTime.MaxValue;
     bool _quitting;
     bool _active;
+    IntPtr _window;
 
 
     // stopped on purpose, don't relaunch
@@ -82,6 +84,10 @@ public class HOTServerPlugin : BaseUnityPlugin
             foreach (var cam in Camera.allCameras) cam.enabled = false;
     }
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindow(string cls, string title);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hwnd);
+    [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd, int cmd);
+
     // Next occurrence of RebootTime
     void ScheduleReboot()
     {
@@ -109,6 +115,10 @@ public class HOTServerPlugin : BaseUnityPlugin
     void Update()
     {
         if (!_active) return;
+
+        // Fix a blank window (on linux atleast) when the game loads into a lobby
+        if (_window == IntPtr.Zero) _window = FindWindow("Unity.BatchModeWindow", null);
+        if (_window != IntPtr.Zero && IsWindowVisible(_window)) ShowWindow(_window, 0);
 
         while (_cmds.TryDequeue(out var item))
         {

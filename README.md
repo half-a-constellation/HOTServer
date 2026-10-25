@@ -24,12 +24,13 @@ Schedule server reboots at a specific time to prevent memory buildup.
 A service can automatically attempt to restart the server when it detects a crash.
 
 ### ZERO GPU Usage.
-Since the game runs headless, it only uses your CPU (and ~1 GB of VRAM). Feel free to run another game or graphically intensive task in the background.
+Since the game runs headless, it only uses your CPU. No utilization on GPU or VRAM. Feel free to run another game or graphically intensive task in the background.
 
 ### Mod Support
 Being a mod itself, it's compatible with other BepInEx mods (such as Heartbeat). If there is any problem, please open an Issue.
 
-### Lightweight
+### Lightweight and Optimized
+Uses only ~1.1 GiB of RAM, compared to 1.1 GiB RAM + 1.2 GiB VRAM when hosting by playing the game normally.
 Adds no overhead on top of the game. This mod simply enables the creation of the server using the game's own functionality.
 
 ## Config

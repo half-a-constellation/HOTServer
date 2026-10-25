@@ -15,3 +15,6 @@ src/obj/
 # OS stuff
 .DS_Store
 Thumbs.db
+
+# HOTServer related
+hotserver.paths

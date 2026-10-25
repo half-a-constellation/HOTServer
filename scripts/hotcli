@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # hotcli <command...>   e.g. hotcli status | hotcli set name My Room | hotcli players | hotcli start
 APPID=3707400
-LAUNCH_ARGS="-batchmode" # Required for headless
+LAUNCH_ARGS="-batchmode -nographics" # Required for headless
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 PATHS_FILE="$DIR/../hotserver.paths"   # remembers which BepInEx folder HOTServer is installed in (written by hotcli setup)
 TAGS="focus mature chill break modded"

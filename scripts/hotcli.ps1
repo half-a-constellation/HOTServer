@@ -1,7 +1,7 @@
 # hotcli <command...>   e.g. hotcli status | hotcli set name My Room | hotcli players | hotcli start
 # Windows version. Can live anywhere; finds HOTServer through Steam and mod manager profiles.
 $AppId = 3707400
-$LaunchArgs = '-batchmode'   # passed to the game only when we start it, so normal play from Steam stays normal
+$LaunchArgs = '-batchmode -nographics'   # passed to the game only when we start it, so normal play from Steam stays normal
 
 $PathsFile = Join-Path (Split-Path $PSScriptRoot -Parent) 'hotserver.paths'   # remembers which BepInEx folder HOTServer is installed in (written by hotcli setup)
 
