@@ -1,4 +1,5 @@
-> The following assumes that you are running Ubuntu 24.04 lts or higher, on an x86 machine.
+> The following assumes that you are running an x86 VPS on Ubuntu 24.04 lts or higher.
+> For other distros, look for the equivalent of the following commands
 
 Tested on a Microsoft Azure Standard D2as v6 (2 vCPUs, 8 GiB memory).  
 

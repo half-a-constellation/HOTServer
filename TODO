@@ -1,0 +1,6 @@
+Complete the docs of vm installation
+Implement a GUI that utilizes hotcli and hotwatch
+Add chat log functionality. Also add 'send message as host' or something like that
+Allow the gui to connect to remote ssh, find hotcli (else download in a set location) and then allow you to control the server from the gui on your system (with ssh key support)
+
+(potentially future) memory and compute optimizations like Sodium/FerriteCore, as a plugin like hotwatch so i dont have to run behind it every patch
