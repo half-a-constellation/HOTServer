@@ -10,12 +10,12 @@ trap 'rm -rf "$TMP"' EXIT
 
 dotnet build "$ROOT/src" -c Release
 mkdir -p "$OUT"
-rm -f "$OUT"/*_"$VERSION".zip
+rm -f "$OUT"/*_v"$VERSION".zip
 
 mkdir -p "$TMP/HOTServer" && cp "$DLL" "$TMP/HOTServer/"
-(cd "$TMP" && zip -qr "$OUT/HOTServer-dll_$VERSION.zip" HOTServer)
-(cd "$ROOT" && zip -qr "$OUT/HOTServer-Scripts_$VERSION.zip" scripts linux_run.sh windows_run.cmd)
-zip -qj "$OUT/HOTServer-Thunderstore_$VERSION.zip" "$ROOT/manifest.json" "$ROOT/icon.png" "$ROOT/README.md" "$ROOT/CHANGELOG.md" "$DLL"
+(cd "$TMP" && zip -qr "$OUT/HOTServer-dll_v$VERSION.zip" HOTServer)
+(cd "$ROOT" && zip -qr "$OUT/HOTServer-Scripts_v$VERSION.zip" scripts linux_run.sh windows_run.cmd)
+zip -qj "$OUT/HOTServer-Thunderstore_v$VERSION.zip" "$ROOT/manifest.json" "$ROOT/icon.png" "$ROOT/README.md" "$ROOT/CHANGELOG.md" "$DLL"
 
 echo "Release $VERSION:"
-for z in "$OUT"/*_"$VERSION".zip; do echo; unzip -l "$z"; done
+for z in "$OUT"/*_v"$VERSION".zip; do echo; unzip -l "$z"; done
